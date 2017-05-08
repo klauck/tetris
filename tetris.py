@@ -1,4 +1,6 @@
 import curses
+import os
+import sys
 from random import choice, randint
 from datetime import datetime, timedelta
 
@@ -36,8 +38,7 @@ class Block(object):
             exit(0)
         self.game.set_cells(cells, self.color)
 
-
-    def move(self, delta_x, delta_y, rotate_clock):
+    def move(self, delta_x, delta_y, rotate_clock=0):
         new_rotation = (self.rotation + rotate_clock) % len(self.shape)
         cells = [(s_x + self.x + delta_x, s_y + self.y + delta_y) for s_x, s_y in self.shape[new_rotation]]
         if self.game.collides_with_existing_cells(cells) == True:
@@ -49,6 +50,22 @@ class Block(object):
             self.y += delta_y
             self.rotation = new_rotation
             self.game.set_cells(cells, self.color)
+
+    def move_down(self):
+        self.move(delta_x=0, delta_y=1)
+
+    def move_left(self):
+        self.move(delta_x=-1, delta_y=0)
+
+    def move_right(self):
+        self.move(delta_x=1, delta_y=0)
+
+    def rotate(self):
+        self.move(delta_x=0, delta_y=0, rotate_clock=-1)
+
+    def fall_down(self):
+        for i in range(self.game.size_y):
+            self.move(delta_x=0, delta_y=1)
 
     def fix(self):
         cells = [(s_x + self.x, s_y + self.y) for s_x, s_y in self.shape[self.rotation]]
@@ -63,6 +80,7 @@ class Tetris(object):
         self.size_y = size_y
         self.lines = 0
         self.field = []
+        self.current_block = None
         for x in range(self.size_x):
             self.field.append(['empty'] * self.size_y)
         for x in range(self.size_x):
@@ -72,7 +90,7 @@ class Tetris(object):
     def draw_field(self):
         self.screen.addstr(0, 25, 'TETRIS')
         self.screen.addstr(2, 23, 'Lines: %d' % self.lines)
-        self.screen.addstr(4, 23, 'ESC: End game')
+        self.screen.addstr(4, 23, 'ESC / Ctrl+c: End game')
 
         BORDER_CHAR = ord('#')
         for x in range(2 * self.size_x + 2):
@@ -100,7 +118,6 @@ class Tetris(object):
         for c in cells:
             self.clear_cell(c[0], c[1])
 
-
     def fix_cells(self, cells, color):
         for x, y in cells:
             self.field[x][y] = color
@@ -114,80 +131,79 @@ class Tetris(object):
         for c in cells:
             self.set_cell(c[0], c[1], color)
 
+    def _handle_key_press(self):
+        try:
+            c = self.screen.getch()
+            if c == 27: # ESC
+                sys.exit()
+            elif c == curses.KEY_DOWN:
+                self.current_block.move_down()
+            elif c == curses.KEY_UP:
+                self.current_block.rotate()
+            elif c == curses.KEY_LEFT:
+                self.current_block.move_left()
+            elif c == curses.KEY_RIGHT:
+                self.current_block.move_right()
+            elif c == curses.KEY_ENTER or c == 10 or c == 13 or c == 32:
+                # Enter or space
+                self.current_block.fall_down()
+            else:
+                pass
+        except KeyboardInterrupt: #Ctrl+c
+            sys.exit()
 
-    def start(self):
-        keep_running = True
-        while keep_running:
-            current_block = Block(self.size_x//2, 0, self)
+    def _remove_complete_lines(self):
+        # test for completed line
+        full_lines = []
+        first_clear_line = None
+        for y in range(self.size_y-1, -1, -1):
+            complete_line = True
+            clear_line = True
+            for x in range(self.size_x):
+                if self.field[x][y] == 'empty':
+                    complete_line = False
+                else:
+                    clear_line = False
+            if clear_line:
+                first_clear_line = y
+                break
+            if complete_line:
+                self.lines += 1
+                full_lines.append(y)
+
+        if full_lines:
+            self.screen.addstr(2, 23, 'Lines: %d' % self.lines)
+            shift_to = full_lines[0]
+            self.clear_cells([(x, shift_to) for x in range(self.size_x)])
+            shift_from = full_lines[0] - 1
+            while shift_from != first_clear_line:
+                if shift_from in full_lines:
+                    self.clear_cells([(x, shift_from) for x in range(self.size_x)])
+                    shift_from -= 1
+                    continue
+                else:
+                    line_to_move = [self.field[x][shift_from] for x in range(self.size_x)]
+                    self.clear_cells([(x, shift_from) for x in range(self.size_x)])
+                    for x in range(self.size_x):
+                        self.set_cell(x, shift_to, line_to_move[x])
+                        self.field[x][shift_to] = line_to_move[x]
+                    shift_to -= 1
+                    shift_from -= 1
+
+    def run(self):
+        while True:
+            self.current_block = Block(self.size_x//2, 0, self)
             next_down = datetime.now() + timedelta(seconds=1)
             while True:
-                c = self.screen.getch()
-                if (c == 27):
-                    # ESC
-                    keep_running = False
-                    break
-                elif (c == 258):
-                    # down 
-                    current_block.move(delta_x=0, delta_y=1, rotate_clock=0)
-                elif (c == 259):
-                    # up key
-                    current_block.move(delta_x=0, delta_y=0, rotate_clock=-1)
-                elif (c == 260):
-                    # left
-                    current_block.move(delta_x=-1, delta_y=0, rotate_clock=0)
-                elif (c == 261):
-                    # right
-                    current_block.move(delta_x=1, delta_y=0, rotate_clock=0)
-                elif (c == curses.KEY_ENTER or c == 10 or c == 13):
-                    for i in range(self.size_y):
-                        current_block.move(delta_x=0, delta_y=1, rotate_clock=0)
-                else:
-                    pass
-
+                self._handle_key_press()
                 if datetime.now() > next_down:
-                    old_y = current_block.y
-                    current_block.move(delta_x=0, delta_y=1, rotate_clock=0)
-                    if old_y == current_block.y:
-                        current_block.fix()
+                    old_y = self.current_block.y
+                    self.current_block.move_down()
+                    if old_y == self.current_block.y:
+                        self.current_block.fix()
                         break
                     next_down += timedelta(seconds=1)
-
-            # test for completed line
-            full_lines = []
-            first_clear_line = None
-            for y in range(self.size_y-1, -1, -1):
-                complete_line = True
-                clear_line = True
-                for x in range(self.size_x):
-                    if self.field[x][y] == 'empty':
-                        complete_line = False
-                    else:
-                        clear_line = False
-                if clear_line:
-                    first_clear_line = y
-                    break
-                if complete_line:
-                    self.lines += 1
-                    full_lines.append(y)
-
-            if full_lines:
-                self.screen.addstr(2, 23, 'Lines: %d' % self.lines)
-                shift_to = full_lines[0]
-                self.clear_cells([(x, shift_to) for x in range(self.size_x)])
-                shift_from = full_lines[0] - 1
-                while shift_from != first_clear_line:
-                    if shift_from in full_lines:
-                        self.clear_cells([(x, shift_from) for x in range(self.size_x)])
-                        shift_from -= 1
-                        continue
-                    else:
-                        line_to_move = [self.field[x][shift_from] for x in range(self.size_x)]
-                        self.clear_cells([(x, shift_from) for x in range(self.size_x)])
-                        for x in range(self.size_x):
-                            self.set_cell(x, shift_to, line_to_move[x])
-                            self.field[x][shift_to] = line_to_move[x]
-                        shift_to -= 1
-                        shift_from -= 1
+            self._remove_complete_lines()
 
 
 
@@ -205,8 +221,10 @@ def main(screen):
 
     game = Tetris(screen=screen, size_x=10, size_y=18)
     game.draw_field()
-    game.start()
+    game.run()
 
 
 if __name__ == '__main__':
+    # http://stackoverflow.com/questions/27372068/why-does-the-escape-key-have-a-delay-in-python-curses
+    os.environ.setdefault('ESCDELAY', '0')
     curses.wrapper(main)

@@ -4,7 +4,12 @@ import sys
 from random import choice, randint
 from datetime import datetime, timedelta
 
-class Block(object):
+class Tetrimino(object):
+    """
+    A geometric shape composed of four squares, connected orthogonally.
+    Tetris' name for a tetromino.
+    https://en.wikipedia.org/wiki/Tetromino
+    """
     BLOCK1 = (((0, 0), (1, 0), (0, 1), (1, 1)),)
     BLOCK2 = (((1, 1), (2, 1), (3, 1), (4, 1)),
               ((1, 1), (1, 2), (1, 3), (1, 4)))
@@ -192,7 +197,7 @@ class Tetris(object):
 
     def run(self):
         while True:
-            self.current_block = Block(self.size_x//2, 0, self)
+            self.current_block = Tetrimino(self.size_x//2, 0, self)
             next_down = datetime.now() + timedelta(seconds=1)
             while True:
                 self._handle_key_press()

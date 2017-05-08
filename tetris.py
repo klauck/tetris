@@ -3,6 +3,7 @@ import os
 import sys
 from random import choice, randint
 from datetime import datetime, timedelta
+import atexit
 
 class Tetrimino(object):
     """
@@ -210,6 +211,9 @@ class Tetris(object):
                     next_down += timedelta(seconds=1)
             self._remove_complete_lines()
 
+    def goodbye(self):
+        print 'Lines cleared: %d' % self.lines
+        print 'Bye!'
 
 
 def main(screen):
@@ -226,6 +230,7 @@ def main(screen):
 
     game = Tetris(screen=screen, size_x=10, size_y=18)
     game.draw_field()
+    atexit.register(game.goodbye)
     game.run()
 
 

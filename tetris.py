@@ -82,11 +82,15 @@ class Tetrimino(object):
 
 
 class Tetris(object):
-    def __init__(self, screen, size_x, size_y):
+    def __init__(self, screen, size_x, size_y, game_type):
         self.screen = screen
         self.size_x = size_x
         self.size_y = size_y
-        self.lines = 0
+        self.game_type = game_type
+        if game_type == 'B':
+            self._lines = 5
+        else:
+            self._lines = 0
         self.field = []
         self.current_block = None
         for x in range(self.size_x):
@@ -95,9 +99,15 @@ class Tetris(object):
             for y in range(self.size_y):
                 self.clear_cell(x, y)
 
+    def cleared_line(self):
+        if self.game_type == 'B':
+            self._lines = max(self._lines - 1, 0)
+        else:
+            self._lines += 1
+
     def draw_field(self):
         self.screen.addstr(0, 25, 'TETRIS')
-        self.screen.addstr(2, 23, 'Lines: %d' % self.lines)
+        self.screen.addstr(2, 23, 'Lines: %d' % self._lines)
         self.screen.addstr(4, 23, 'ESC / Ctrl+c: End game')
 
         BORDER_CHAR = ord('#')
@@ -176,11 +186,11 @@ class Tetris(object):
                 first_clear_line = y
                 break
             if complete_line:
-                self.lines += 1
+                self.cleared_line()
                 full_lines.append(y)
 
         if full_lines:
-            self.screen.addstr(2, 23, 'Lines: %d' % self.lines)
+            self.screen.addstr(2, 23, 'Lines: %d' % self._lines)
             shift_to = full_lines[0]
             self.clear_cells([(x, shift_to) for x in range(self.size_x)])
             shift_from = full_lines[0] - 1
@@ -197,6 +207,8 @@ class Tetris(object):
                         self.field[x][shift_to] = line_to_move[x]
                     shift_to -= 1
                     shift_from -= 1
+            if self.game_type == 'B' and self._lines == 0:
+                sys.exit()
 
     def run(self):
         while True:
@@ -214,11 +226,13 @@ class Tetris(object):
             self._remove_complete_lines()
 
     def goodbye(self):
-        print('Lines cleared: %d' % self.lines)
+        if game_type == 'B':
+            self._lines = 5
+        print('Lines cleared: %d' % self._lines)
         print('Bye!')
 
 
-def main(screen):
+def main(screen, game_type):
     curses.curs_set(0)
     curses.start_color()
     curses.init_pair(1, curses.COLOR_RED, curses.COLOR_RED)
@@ -230,13 +244,18 @@ def main(screen):
     curses.init_pair(7, curses.COLOR_WHITE, curses.COLOR_WHITE)
     screen.nodelay(1)
 
-    game = Tetris(screen=screen, size_x=10, size_y=18)
+    game = Tetris(screen=screen, size_x=10, size_y=18, game_type=game_type)
     game.draw_field()
     atexit.register(game.goodbye)
     game.run()
 
 
 if __name__ == '__main__':
+    game_type = 'A'
+    if len(sys.argv) > 1 and sys.argv[1] == 'B':
+        game_type = 'B'
+
+
     # http://stackoverflow.com/questions/27372068/why-does-the-escape-key-have-a-delay-in-python-curses
     os.environ.setdefault('ESCDELAY', '0')
-    curses.wrapper(main)
+    curses.wrapper(main, game_type)

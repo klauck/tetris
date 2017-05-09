@@ -6,6 +6,7 @@ import sys
 from random import choice, randint
 from datetime import datetime, timedelta
 import atexit
+import time
 
 class Tetrimino(object):
     """
@@ -87,6 +88,7 @@ class Tetris(object):
         self.size_x = size_x
         self.size_y = size_y
         self.game_type = game_type
+        self.start_time = time.time()
         if game_type == 'B':
             self._lines = 5
         else:
@@ -108,7 +110,8 @@ class Tetris(object):
     def draw_field(self):
         self.screen.addstr(0, 25, 'TETRIS')
         self.screen.addstr(2, 23, 'Lines: %d' % self._lines)
-        self.screen.addstr(4, 23, 'ESC / Ctrl+c: End game')
+        self.screen.addstr(3, 23, 'Duration:')
+        self.screen.addstr(5, 23, 'ESC / Ctrl+c: End game')
 
         BORDER_CHAR = ord('#')
         for x in range(2 * self.size_x + 2):
@@ -223,12 +226,14 @@ class Tetris(object):
                         self.current_block.fix()
                         break
                     next_down += timedelta(seconds=1)
+                self.screen.addstr(3, 23, 'Duration: %6.1fs' % (time.time() - self.start_time))
             self._remove_complete_lines()
 
     def goodbye(self):
         if game_type == 'B':
-            self._lines = 5
+            self._lines = 5 - self._lines
         print('Lines cleared: %d' % self._lines)
+        print('Duration: %.2fs' % (time.time() - self.start_time))
         print('Bye!')
 
 

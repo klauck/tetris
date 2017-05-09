@@ -212,8 +212,8 @@ class Tetris(object):
             self._remove_complete_lines()
 
     def goodbye(self):
-        print 'Lines cleared: %d' % self.lines
-        print 'Bye!'
+        print('Lines cleared: %d' % self.lines)
+        print('Bye!')
 
 
 def main(screen):

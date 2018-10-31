@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import atexit
 import time
 
+
 class Tetrimino(object):
     """
     A geometric shape composed of four squares, connected orthogonally.
@@ -38,27 +39,26 @@ class Tetrimino(object):
         self.shape = choice([self.BLOCK1, self.BLOCK2, self.BLOCK3, self.BLOCK4, 
                              self.BLOCK5, self.BLOCK6, self.BLOCK7])
         self.rotation = 0
-        self.color = randint(1, 7)
+        self.color = [self.BLOCK1, self.BLOCK2, self.BLOCK3, self.BLOCK4, self.BLOCK5, self.BLOCK6, self.BLOCK7].index(
+            self.shape) + 1
         self.x = x
         self.y = y
         self.game = game
         cells = [(s_x + x, s_y + y) for s_x, s_y in self.shape[self.rotation]]
-        if self.game.collides_with_existing_cells(cells) == True:
-            exit(0)
-        self.game.set_cells(cells, self.color)
+        self.game.draw_cells(cells, self.color)
 
     def move(self, delta_x, delta_y, rotate_clock=0):
         new_rotation = (self.rotation + rotate_clock) % len(self.shape)
         cells = [(s_x + self.x + delta_x, s_y + self.y + delta_y) for s_x, s_y in self.shape[new_rotation]]
-        if self.game.collides_with_existing_cells(cells) == True:
+        if self.game.collides_with_existing_cells(cells):
             pass
         else:
             old_cells = [(s_x + self.x, s_y + self.y) for s_x, s_y in self.shape[self.rotation]]
-            self.game.clear_cells(old_cells)
+            self.game.erase_cells(old_cells)
             self.x += delta_x
             self.y += delta_y
             self.rotation = new_rotation
-            self.game.set_cells(cells, self.color)
+            self.game.draw_cells(cells, self.color)
 
     def move_down(self):
         self.move(delta_x=0, delta_y=1)
@@ -81,7 +81,6 @@ class Tetrimino(object):
         self.game.fix_cells(cells, self.color)
 
 
-
 class Tetris(object):
     def __init__(self, screen, size_x, size_y, game_type):
         self.screen = screen
@@ -90,16 +89,14 @@ class Tetris(object):
         self.game_type = game_type
         self.start_time = time.time()
         if game_type == 'B':
-            self._lines = 5
+            self._lines = 25
         else:
             self._lines = 0
         self.field = []
         self.current_block = None
+        self.next_block = None
         for x in range(self.size_x):
             self.field.append(['empty'] * self.size_y)
-        for x in range(self.size_x):
-            for y in range(self.size_y):
-                self.clear_cell(x, y)
 
     def cleared_line(self):
         if self.game_type == 'B':
@@ -107,18 +104,21 @@ class Tetris(object):
         else:
             self._lines += 1
 
+    def draw_score(self):
+        self.screen.addstr(2, 23, 'Lines: %3d' % self._lines)
+
     def draw_field(self):
         self.screen.addstr(0, 25, 'TETRIS')
-        self.screen.addstr(2, 23, 'Lines: %d' % self._lines)
+        self.draw_score()
         self.screen.addstr(3, 23, 'Duration:')
-        self.screen.addstr(5, 23, 'ESC / Ctrl+c: End game')
+        self.screen.addstr(5, 23, 'ESC / Ctrl+C: End game')
 
-        BORDER_CHAR = ord('#')
+        border_char = ord('#')
         for x in range(2 * self.size_x + 2):
-            self.screen.addch(self.size_y, x, BORDER_CHAR)
+            self.screen.addch(self.size_y, x, border_char)
         for y in range(self.size_y):
-            self.screen.addch(y, 0, BORDER_CHAR)
-            self.screen.addch(y, 2*self.size_x+1, BORDER_CHAR)
+            self.screen.addch(y, 0, border_char)
+            self.screen.addch(y, 2*self.size_x+1, border_char)
 
     def collides_with_existing_cells(self, cells):
         for c in cells:
@@ -130,32 +130,36 @@ class Tetris(object):
                 return True
         return False
 
-    def clear_cell(self, x, y):
-        self.field[x][y] = 'empty'
-        self.screen.addch(y, 2 * (1 +  x), ord(' '))
-        self.screen.addch(y, -1+ 2 * (1 +  x), ord(' '))
-
-    def clear_cells(self, cells):
-        for c in cells:
-            self.clear_cell(c[0], c[1])
-
     def fix_cells(self, cells, color):
         for x, y in cells:
             self.field[x][y] = color
 
-    def set_cell(self, x, y, color):
-        if color != 'empty':
-            self.screen.addch(y, 2 * (1 +  x), ord('*'), curses.color_pair(color))
-            self.screen.addch(y, -1+ 2 * (1 +  x), ord('*'), curses.color_pair(color))
+    def clear_cells(self, cells):
+        for x, y in cells:
+            self.field[x][y] = 'empty'
 
-    def set_cells(self, cells, color):
+    def draw_cell(self, x, y, color):
+        if color != 'empty':
+            self.screen.addch(y, 2 * (1 + x), ord('*'), curses.color_pair(color))
+            self.screen.addch(y, -1 + (2 * (1 + x)), ord('*'), curses.color_pair(color))
+
+    def draw_cells(self, cells, color):
         for c in cells:
-            self.set_cell(c[0], c[1], color)
+            self.draw_cell(c[0], c[1], color)
+
+    def erase_cell(self, x, y):
+        self.screen.addch(y, 2 * (1 + x), ord(' '))
+        self.screen.addch(y, -1 + (2 * (1 + x)), ord(' '))
+
+    def erase_cells(self, cells):
+        for c in cells:
+            self.erase_cell(c[0], c[1])
 
     def _handle_key_press(self):
         try:
             c = self.screen.getch()
-            if c == 27: # ESC
+            if c == 27:
+                # ESC
                 sys.exit()
             elif c == curses.KEY_DOWN:
                 self.current_block.move_down()
@@ -170,7 +174,8 @@ class Tetris(object):
                 self.current_block.fall_down()
             else:
                 pass
-        except KeyboardInterrupt: #Ctrl+c
+        except KeyboardInterrupt:
+            # Ctrl+c
             sys.exit()
 
     def _remove_complete_lines(self):
@@ -187,26 +192,30 @@ class Tetris(object):
                     clear_line = False
             if clear_line:
                 first_clear_line = y
+                # no clear lines or complete lines can follow
                 break
             if complete_line:
                 self.cleared_line()
                 full_lines.append(y)
 
         if full_lines:
-            self.screen.addstr(2, 23, 'Lines: %d' % self._lines)
+            self.draw_score()
             shift_to = full_lines[0]
+            self.erase_cells([(x, shift_to) for x in range(self.size_x)])
             self.clear_cells([(x, shift_to) for x in range(self.size_x)])
             shift_from = full_lines[0] - 1
             while shift_from != first_clear_line:
                 if shift_from in full_lines:
+                    self.erase_cells([(x, shift_from) for x in range(self.size_x)])
                     self.clear_cells([(x, shift_from) for x in range(self.size_x)])
                     shift_from -= 1
                     continue
                 else:
                     line_to_move = [self.field[x][shift_from] for x in range(self.size_x)]
+                    self.erase_cells([(x, shift_from) for x in range(self.size_x)])
                     self.clear_cells([(x, shift_from) for x in range(self.size_x)])
                     for x in range(self.size_x):
-                        self.set_cell(x, shift_to, line_to_move[x])
+                        self.draw_cell(x, shift_to, line_to_move[x])
                         self.field[x][shift_to] = line_to_move[x]
                     shift_to -= 1
                     shift_from -= 1
@@ -214,8 +223,11 @@ class Tetris(object):
                 sys.exit()
 
     def run(self):
+        self.next_block = Tetrimino(self.size_x + 4, 11, self)
         while True:
-            self.current_block = Tetrimino(self.size_x//2, 0, self)
+            self.current_block = self.next_block
+            self.current_block.move(self.size_x//2 - self.current_block.x, 0 - self.current_block.y)
+            self.next_block = Tetrimino(self.size_x + 4, 11, self)
             next_down = datetime.now() + timedelta(seconds=1)
             while True:
                 self._handle_key_press()
@@ -259,7 +271,6 @@ if __name__ == '__main__':
     game_type = 'A'
     if len(sys.argv) > 1 and sys.argv[1] == 'B':
         game_type = 'B'
-
 
     # http://stackoverflow.com/questions/27372068/why-does-the-escape-key-have-a-delay-in-python-curses
     os.environ.setdefault('ESCDELAY', '0')

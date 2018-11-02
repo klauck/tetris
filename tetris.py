@@ -3,7 +3,7 @@
 import curses
 import os
 import sys
-from random import choice, randint
+from random import choice
 from datetime import datetime, timedelta
 import atexit
 import time
@@ -97,21 +97,38 @@ class Tetris(object):
         self.next_block = None
         for x in range(self.size_x):
             self.field.append(['empty'] * self.size_y)
+        self.level = 0
+
+    def drop_speed(self):
+        # level:      00  01  02  03  04  05  06  07 08 09 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29
+        drop_rates = (48, 43, 38, 33, 28, 23, 18, 13, 8, 6, 5, 5, 5, 4, 4, 4, 3, 3, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1)
+        if self.level < 29:
+            drop_rate = drop_rates[self.level]
+        else:
+            drop_rate = 1
+        return drop_rate / 60
 
     def cleared_line(self):
         if self.game_type == 'B':
             self._lines = max(self._lines - 1, 0)
         else:
             self._lines += 1
+            if self._lines % 2 == 0:
+                self.level += 1
+                self.draw_level()
 
     def draw_score(self):
         self.screen.addstr(2, 23, 'Lines: %3d' % self._lines)
 
+    def draw_level(self):
+        self.screen.addstr(3, 23, 'Level: %3d' % self.level)
+
     def draw_field(self):
         self.screen.addstr(0, 25, 'TETRIS')
         self.draw_score()
-        self.screen.addstr(3, 23, 'Duration:')
-        self.screen.addstr(5, 23, 'ESC / Ctrl+C: End game')
+        self.draw_level()
+        self.screen.addstr(4, 23, 'Duration:')
+        self.screen.addstr(6, 23, 'ESC / Ctrl+C: End game')
 
         border_char = ord('#')
         for x in range(2 * self.size_x + 2):
@@ -227,8 +244,11 @@ class Tetris(object):
         while True:
             self.current_block = self.next_block
             self.current_block.move(self.size_x//2 - self.current_block.x, 0 - self.current_block.y)
+            if self.current_block.y == 11:
+                # New Tetrimino cannot be placed on field -> game over
+                exit()
             self.next_block = Tetrimino(self.size_x + 4, 11, self)
-            next_down = datetime.now() + timedelta(seconds=1)
+            next_down = datetime.now() + timedelta(seconds=self.drop_speed())
             while True:
                 self._handle_key_press()
                 if datetime.now() > next_down:
@@ -237,8 +257,8 @@ class Tetris(object):
                     if old_y == self.current_block.y:
                         self.current_block.fix()
                         break
-                    next_down += timedelta(seconds=1)
-                self.screen.addstr(3, 23, 'Duration: %6.1fs' % (time.time() - self.start_time))
+                    next_down += timedelta(seconds=self.drop_speed())
+                self.screen.addstr(4, 23, 'Duration: %6.1fs' % (time.time() - self.start_time))
             self._remove_complete_lines()
 
     def goodbye(self):

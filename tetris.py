@@ -15,32 +15,44 @@ class Tetrimino(object):
     Tetris' name for a tetromino.
     https://en.wikipedia.org/wiki/Tetromino
     """
-    BLOCK1 = (((0, 0), (1, 0), (0, 1), (1, 1)),)
-    BLOCK2 = (((1, 1), (2, 1), (3, 1), (4, 1)),
-              ((1, 1), (1, 2), (1, 3), (1, 4)))
-    BLOCK3 = (((0, 1), (1, 0), (1, 1), (1, 2)),
-              ((0, 1), (1, 1), (1, 2), (2, 1)),
-              ((0, 0), (0, 1), (0, 2), (1, 1)),
-              ((0, 1), (1, 0), (1, 1), (2, 1)))
-    BLOCK4 = (((0, 0), (0, 1), (0, 2), (1, 2)),
-              ((0, 1), (1, 1), (2, 0), (2, 1)),
-              ((0, 0), (1, 0), (1, 1), (1, 2)),
-              ((0, 0), (0, 1), (1, 0), (2, 0)))
-    BLOCK5 = (((0, 0), (0, 1), (0, 2), (1, 0)),
-              ((0, 0), (0, 1), (1, 1), (2, 1)),
-              ((0, 2), (1, 0), (1, 1), (1, 2)),
-              ((0, 0), (1, 0), (2, 0), (2, 1)))
-    BLOCK6 = (((0, 1), (0, 2), (1, 0), (1, 1)),
-              ((0, 0), (1, 0), (1, 1), (2, 1)))
-    BLOCK7 = (((0, 0), (0, 1), (1, 1), (1, 2)),
-              ((0, 1), (1, 0), (1, 1), (2, 0)))
+    BLOCK_O = (((0, 0), (1, 0), (0, 1), (1, 1)),)
+    BLOCK_I = (((1, 1), (2, 1), (3, 1), (4, 1)),
+               ((1, 1), (1, 2), (1, 3), (1, 4)))
+    BLOCK_T = (((0, 1), (1, 0), (1, 1), (1, 2)),
+               ((0, 1), (1, 1), (1, 2), (2, 1)),
+               ((0, 0), (0, 1), (0, 2), (1, 1)),
+               ((0, 1), (1, 0), (1, 1), (2, 1)))
+    BLOCK_J = (((0, 0), (0, 1), (0, 2), (1, 2)),
+               ((0, 1), (1, 1), (2, 0), (2, 1)),
+               ((0, 0), (1, 0), (1, 1), (1, 2)),
+               ((0, 0), (0, 1), (1, 0), (2, 0)))
+    BLOCK_L = (((0, 0), (0, 1), (0, 2), (1, 0)),
+               ((0, 0), (0, 1), (1, 1), (2, 1)),
+               ((0, 2), (1, 0), (1, 1), (1, 2)),
+               ((0, 0), (1, 0), (2, 0), (2, 1)))
+    BLOCK_Z = (((0, 1), (0, 2), (1, 0), (1, 1)),
+               ((0, 0), (1, 0), (1, 1), (2, 1)))
+    BLOCK_S = (((0, 0), (0, 1), (1, 1), (1, 2)),
+               ((0, 1), (1, 0), (1, 1), (2, 0)))
 
     def __init__(self, x, y, game):
-        self.shape = choice([self.BLOCK1, self.BLOCK2, self.BLOCK3, self.BLOCK4, 
-                             self.BLOCK5, self.BLOCK6, self.BLOCK7])
+        self.shape = choice([self.BLOCK_O, self.BLOCK_I, self.BLOCK_T, self.BLOCK_J,
+                             self.BLOCK_L, self.BLOCK_Z, self.BLOCK_S])
         self.rotation = 0
-        self.color = [self.BLOCK1, self.BLOCK2, self.BLOCK3, self.BLOCK4, self.BLOCK5, self.BLOCK6, self.BLOCK7].index(
-            self.shape) + 1
+        if self.shape == self.BLOCK_O:
+            self.color = curses.COLOR_YELLOW
+        elif self.shape == self.BLOCK_I:
+            self.color = curses.COLOR_CYAN
+        elif self.shape == self.BLOCK_T:
+            self.color = curses.COLOR_MAGENTA
+        elif self.shape == self.BLOCK_J:
+            self.color = curses.COLOR_BLUE
+        elif self.shape == self.BLOCK_L:
+            self.color = curses.COLOR_WHITE
+        elif self.shape == self.BLOCK_Z:
+            self.color = curses.COLOR_RED
+        elif self.shape == self.BLOCK_S:
+            self.color = curses.COLOR_GREEN
         self.x = x
         self.y = y
         self.game = game
@@ -113,7 +125,7 @@ class Tetris(object):
             self._lines = max(self._lines - 1, 0)
         else:
             self._lines += 1
-            if self._lines % 2 == 0:
+            if self._lines % 10 == 0:
                 self.level += 1
                 self.draw_level()
 

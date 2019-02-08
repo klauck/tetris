@@ -15,25 +15,26 @@ class Tetrimino(object):
     Tetris' name for a tetromino.
     https://en.wikipedia.org/wiki/Tetromino
     """
-    BLOCK_O = (((0, 0), (1, 0), (0, 1), (1, 1)),)
-    BLOCK_I = (((1, 1), (2, 1), (3, 1), (4, 1)),
-               ((1, 1), (1, 2), (1, 3), (1, 4)))
-    BLOCK_T = (((0, 1), (1, 0), (1, 1), (1, 2)),
-               ((0, 1), (1, 1), (1, 2), (2, 1)),
-               ((0, 0), (0, 1), (0, 2), (1, 1)),
-               ((0, 1), (1, 0), (1, 1), (2, 1)))
-    BLOCK_J = (((0, 0), (0, 1), (0, 2), (1, 2)),
-               ((0, 1), (1, 1), (2, 0), (2, 1)),
+    # Rotations are implemented according to the Game Boy
+    BLOCK_O = (((1, 1), (2, 1), (1, 2), (2, 2)),)
+    BLOCK_I = (((0, 1), (1, 1), (2, 1), (3, 1)),
+               ((1, -1), (1, 0), (1, 1), (1, 2)))
+    BLOCK_T = (((0, 1), (1, 1), (1, 2), (2, 1)),
+               ((0, 1), (1, 0), (1, 1), (1, 2)),
+               ((0, 1), (1, 0), (1, 1), (2, 1)),
+               ((1, 0), (1, 1), (1, 2), (2, 1)))
+    BLOCK_L = (((0, 1), (0, 2), (1, 1), (2, 1)),
                ((0, 0), (1, 0), (1, 1), (1, 2)),
-               ((0, 0), (0, 1), (1, 0), (2, 0)))
-    BLOCK_L = (((0, 0), (0, 1), (0, 2), (1, 0)),
-               ((0, 0), (0, 1), (1, 1), (2, 1)),
+               ((0, 1), (1, 1), (2, 0), (2, 1)),
+               ((1, 0), (1, 1), (1, 2), (2, 2)))
+    BLOCK_J = (((0, 1), (1, 1), (2, 1), (2, 2)),
                ((0, 2), (1, 0), (1, 1), (1, 2)),
-               ((0, 0), (1, 0), (2, 0), (2, 1)))
-    BLOCK_Z = (((0, 1), (0, 2), (1, 0), (1, 1)),
-               ((0, 0), (1, 0), (1, 1), (2, 1)))
-    BLOCK_S = (((0, 0), (0, 1), (1, 1), (1, 2)),
-               ((0, 1), (1, 0), (1, 1), (2, 0)))
+               ((0, 0), (0, 1), (1, 1), (2, 1)),
+               ((1, 0), (1, 1), (1, 2), (2, 0)))
+    BLOCK_Z = (((0, 1), (1, 1), (1, 2), (2, 2)),
+               ((0, 1), (0, 2), (1, 0), (1, 1)))
+    BLOCK_S = (((0, 2), (1, 1), (1, 2), (2, 1)),
+               ((0, 0), (0, 1), (1, 1), (1, 2)))
 
     def __init__(self, x, y, game):
         self.shape = choice([self.BLOCK_O, self.BLOCK_I, self.BLOCK_T, self.BLOCK_J,
@@ -82,7 +83,7 @@ class Tetrimino(object):
         self.move(delta_x=1, delta_y=0)
 
     def rotate(self):
-        self.move(delta_x=0, delta_y=0, rotate_clock=-1)
+        self.move(delta_x=0, delta_y=0, rotate_clock=1)
 
     def fall_down(self):
         for i in range(self.game.size_y):
@@ -155,6 +156,9 @@ class Tetris(object):
                 return True
             if c[1] >= self.size_y:
                 return True
+            if c[1] == -1:
+                # BLOCK_I may leave play field if rotated at initial position
+                return False
             if self.field[c[0]][c[1]] != 'empty':
                 return True
         return False
@@ -174,7 +178,8 @@ class Tetris(object):
 
     def draw_cells(self, cells, color):
         for c in cells:
-            self.draw_cell(c[0], c[1], color)
+            if c[1] != -1:
+                self.draw_cell(c[0], c[1], color)
 
     def erase_cell(self, x, y):
         self.screen.addch(y, 2 * (1 + x), ord(' '))
@@ -182,7 +187,8 @@ class Tetris(object):
 
     def erase_cells(self, cells):
         for c in cells:
-            self.erase_cell(c[0], c[1])
+            if c[1] != -1:
+                self.erase_cell(c[0], c[1])
 
     def _handle_key_press(self):
         try:
@@ -255,7 +261,7 @@ class Tetris(object):
         self.next_block = Tetrimino(self.size_x + 4, 11, self)
         while True:
             self.current_block = self.next_block
-            self.current_block.move(self.size_x//2 - self.current_block.x, 0 - self.current_block.y)
+            self.current_block.move(self.size_x//2 - self.current_block.x - 2, 0 - self.current_block.y)
             if self.current_block.y == 11:
                 # New Tetrimino cannot be placed on field -> game over
                 exit()
